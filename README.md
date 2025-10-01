@@ -2,6 +2,8 @@
 
 Personal price monitoring tool that automatically checks Prisjakt.nu and Blocket.se for product deals. Built to stop manually checking if computer parts finally dropped in price.
 
+(blocket currently doesnt work since it shows prices in javascript init)
+
 ## How it works
 
 This tool monitors product prices across two Swedish platforms: Prisjakt (retail prices) and Blocket (used market). It scrapes prices at regular intervals, compares them against your target prices, and sends Pushbullet notifications when deals are found.
