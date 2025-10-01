@@ -109,24 +109,59 @@ fi
 
 # Update virtual environment if requirements changed
 echo "🔧 Updating Python dependencies..."
-if [ -d "$INSTALL_DIR/venv" ]; then
+
+# Check if virtual environment exists and is working
+if [ -d "$INSTALL_DIR/venv" ] && [ -f "$INSTALL_DIR/venv/bin/pip" ]; then
+    echo "   Found existing virtual environment"
     # Fix permissions first
     sudo chown -R price-tracker:price-tracker "$INSTALL_DIR/venv"
-    sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade
+    
+    # Test if pip works
+    if sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" --version >/dev/null 2>&1; then
+        echo "   Virtual environment is working, updating packages..."
+        sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade
+    else
+        echo "   Virtual environment is broken, recreating..."
+        sudo rm -rf "$INSTALL_DIR/venv"
+        sudo python3 -m venv "$INSTALL_DIR/venv"
+        sudo chown -R price-tracker:price-tracker "$INSTALL_DIR/venv"
+        sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
+        sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+    fi
 else
     echo "   Creating new virtual environment..."
+    sudo rm -rf "$INSTALL_DIR/venv" 2>/dev/null || true
     sudo python3 -m venv "$INSTALL_DIR/venv"
     sudo chown -R price-tracker:price-tracker "$INSTALL_DIR/venv"
+    sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install --upgrade pip
     sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
 fi
 
 # Restore configuration and data
 echo "🔙 Restoring configuration and data..."
-sudo cp "$BACKUP_DIR/.env" "$INSTALL_DIR/" 2>/dev/null || echo "   No .env to restore"
-sudo cp "$BACKUP_DIR/products.json" "$INSTALL_DIR/" 2>/dev/null || echo "   No products.json to restore"
-sudo cp "$BACKUP_DIR/price_history.json" "$INSTALL_DIR/" 2>/dev/null || echo "   No price_history.json to restore"
+if [ -f "$BACKUP_DIR/.env" ]; then
+    sudo cp "$BACKUP_DIR/.env" "$INSTALL_DIR/"
+    echo "   ✅ Restored .env file"
+else
+    echo "   ⚠️  No .env file to restore"
+fi
 
-# Fix permissions
+if [ -f "$BACKUP_DIR/products.json" ]; then
+    sudo cp "$BACKUP_DIR/products.json" "$INSTALL_DIR/"
+    echo "   ✅ Restored products.json"
+else
+    echo "   ⚠️  No products.json to restore"
+fi
+
+if [ -f "$BACKUP_DIR/price_history.json" ]; then
+    sudo cp "$BACKUP_DIR/price_history.json" "$INSTALL_DIR/"
+    echo "   ✅ Restored price_history.json"
+else
+    echo "   ℹ️  No price_history.json to restore (will be created on first run)"
+fi
+
+# Fix permissions for all files
+echo "🔧 Fixing file permissions..."
 sudo chown -R price-tracker:price-tracker "$INSTALL_DIR/"
 
 # Handle service migration
@@ -145,23 +180,46 @@ fi
 # Reload systemd and restart service
 echo "🔄 Reloading systemd and starting service..."
 sudo systemctl daemon-reload
+
+# Test configuration before starting service
+echo "🧪 Testing configuration..."
+if sudo -u price-tracker "$INSTALL_DIR/venv/bin/python" -c "
+import sys
+sys.path.insert(0, '$INSTALL_DIR')
+try:
+    from models import Product
+    from storage import Storage
+    print('✅ Python modules load correctly')
+except Exception as e:
+    print(f'❌ Module loading failed: {e}')
+    exit(1)
+"; then
+    echo "   Configuration test passed"
+else
+    echo "   ⚠️  Configuration test failed, but continuing..."
+fi
+
+# Start the service
+echo "🚀 Starting price-tracker service..."
 sudo systemctl start price-tracker
 sudo systemctl enable price-tracker
 
 # Check service status
-sleep 2
+sleep 3
 if sudo systemctl is-active price-tracker --quiet; then
     echo ""
     echo "✅ Update completed successfully!"
     if [ "$MIGRATE_FROM_OLD" = true ]; then
         echo "   ✅ Successfully migrated from prisjakt-scraper to price-tracker"
     fi
-    echo "   Service is running and enabled"
+    echo "   📊 Service is running and enabled"
+    echo "   📝 Check logs: sudo journalctl -u price-tracker -f"
 else
     echo ""
     echo "⚠️  Update completed but service may have issues"
-    echo "   Check status: sudo systemctl status price-tracker"
-    echo "   Check logs: sudo journalctl -u price-tracker -n 20"
+    echo "   🔍 Check status: sudo systemctl status price-tracker"
+    echo "   📋 Check logs: sudo journalctl -u price-tracker -n 20"
+    echo "   🧪 Test manually: sudo -u price-tracker $INSTALL_DIR/venv/bin/python $INSTALL_DIR/main.py --test-notifications"
 fi
 
 echo ""
