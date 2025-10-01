@@ -47,6 +47,12 @@ sudo systemctl stop "$SERVICE_NAME" 2>/dev/null || echo "   Service wasn't runni
 if [ "$INSTALL_DIR" = "$OLD_INSTALL" ]; then
     echo "🔄 Migrating from prisjakt-scraper to price-tracker..."
     
+    # Create price-tracker user if it doesn't exist
+    if ! id "price-tracker" &>/dev/null; then
+        echo "   Creating price-tracker user..."
+        sudo useradd --system --no-create-home --shell /bin/false price-tracker
+    fi
+    
     # Create new directory
     sudo mkdir -p "$NEW_INSTALL"
     
@@ -84,6 +90,8 @@ sudo cp requirements.txt "$INSTALL_DIR/"
 # Update virtual environment if requirements changed
 echo "🔧 Updating Python dependencies..."
 if [ -d "$INSTALL_DIR/venv" ]; then
+    # Fix permissions first
+    sudo chown -R price-tracker:price-tracker "$INSTALL_DIR/venv"
     sudo -u price-tracker "$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt" --upgrade
 else
     echo "   Creating new virtual environment..."
