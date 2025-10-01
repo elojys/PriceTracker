@@ -271,7 +271,17 @@ class BlocketScraper:
                 response = self.session.get(str(product.url), timeout=30)
                 response.raise_for_status()
                 
+                self.logger.debug(f"Response status: {response.status_code}, content length: {len(response.content)}")
+                
                 soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Log some basic page info for debugging
+                title = soup.title.string if soup.title else "No title"
+                self.logger.debug(f"Page title: {title}")
+                
+                # Check if this might be a bot-detection page
+                if "robot" in title.lower() or "captcha" in response.text.lower():
+                    self.logger.warning(f"Possible bot detection page for {product.name}")
                 
                 # Extract all prices from search results
                 prices = self._extract_search_result_prices(soup, product)
@@ -323,28 +333,47 @@ class BlocketScraper:
         """Extract all prices from Blocket search results"""
         prices = []
         
+        # More comprehensive list of price selectors for Blocket
         price_selectors = [
             '.item-price',
             '.search-item__price',
             '.price-container',
             '[data-testid="price"]',
             '.amount',
-            '.price'
+            '.price',
+            '.listing-price',
+            '.ad-price',
+            '[class*="price"]',
+            '[class*="Price"]',
+            '.SearchItem-price',
+            '.listitem-price',
+            '.price-value',
+            '.ad-item-price'
         ]
+        
+        self.logger.debug(f"Searching for prices with {len(price_selectors)} selectors")
         
         for selector in price_selectors:
             elements = soup.select(selector)
-            for element in elements:
-                price = self._parse_price_text(element.get_text(strip=True))
-                if price is not None:
-                    prices.append(price)
-        
+            if elements:
+                self.logger.debug(f"Found {len(elements)} elements with selector: {selector}")
+                for element in elements:
+                    price_text = element.get_text(strip=True)
+                    self.logger.debug(f"Price text from {selector}: '{price_text}'")
+                    price = self._parse_price_text(price_text)
+                    if price is not None:
+                        prices.append(price)
+                        self.logger.debug(f"Parsed price: {price}")
+
+        # If no prices found with selectors, try text-based extraction
         if not prices:
+            self.logger.debug("No prices found with selectors, trying text extraction")
             prices = self._extract_prices_from_text(soup)
         
+        # Remove duplicates and sort
         prices = sorted(list(set(prices)))
         
-        self.logger.debug(f"Extracted {len(prices)} prices: {prices}")
+        self.logger.info(f"Extracted {len(prices)} unique prices: {prices[:10]}")  # Show first 10
         return prices
     
     def _extract_prices_from_text(self, soup: BeautifulSoup) -> List[float]:
@@ -352,24 +381,33 @@ class BlocketScraper:
         prices = []
         
         text_content = soup.get_text()
+        self.logger.debug(f"Searching text content (length: {len(text_content)})")
         
+        # More comprehensive price patterns for Swedish prices
         price_patterns = [
-            r'(\d{1,3}(?:\s\d{3})*)\s*kr',
-            r'(\d+(?:,\d{3})*)\s*kr',       
-            r'(\d+(?:\.\d{3})*)\s*kr',
-            r'(\d+)\s*kr',
-            r'kr\s*(\d{1,3}(?:\s\d{3})*)',
-            r'kr\s*(\d+(?:[,\.]\d{3})*)',
+            r'(\d{1,3}(?:\s\d{3})+)\s*kr',    # "3 997 kr" (space-separated thousands)
+            r'(\d+)\s*kr',                    # "3997 kr" (no separators)
+            r'kr\s*(\d{1,3}(?:\s\d{3})+)',    # "kr 3 997" (reversed)
+            r'kr\s*(\d+)',                    # "kr 3997" (reversed, no separators)
+            r'(\d+(?:,\d{3})+)\s*kr',         # "3,997 kr" (comma-separated)
+            r'(\d+(?:\.\d{3})+)\s*kr',        # "3.997 kr" (dot-separated - some locales)
+            r'(\d{4,6})\s*kr',                # 4-6 digit prices
         ]
         
-        for pattern in price_patterns:
+        for i, pattern in enumerate(price_patterns):
             matches = re.finditer(pattern, text_content, re.IGNORECASE)
+            pattern_prices = []
             for match in matches:
                 price_text = match.group(1)
                 price = self._parse_price_text(price_text)
                 if price is not None:
+                    pattern_prices.append(price)
                     prices.append(price)
+            
+            if pattern_prices:
+                self.logger.debug(f"Pattern {i+1} found {len(pattern_prices)} prices: {pattern_prices[:5]}")
         
+        self.logger.debug(f"Text extraction found {len(prices)} total prices")
         return prices
     
     def _parse_price_text(self, price_text: str) -> Optional[float]:
