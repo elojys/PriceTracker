@@ -8,6 +8,21 @@ set -e
 echo "🔄 Updating PriceTracker installation..."
 echo ""
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# If script is downloaded standalone, clone the repo
+if [ ! -f "$SCRIPT_DIR/main.py" ]; then
+    echo "📥 Source files not found locally, cloning from GitHub..."
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+    git clone https://github.com/elojys/PriceTracker.git
+    SCRIPT_DIR="$TEMP_DIR/PriceTracker"
+    echo "   Cloned to: $SCRIPT_DIR"
+fi
+
+echo "📂 Using source files from: $SCRIPT_DIR"
+
 # Check if installation exists (support both old and new names)
 OLD_INSTALL="/opt/prisjakt-scraper"
 NEW_INSTALL="/opt/price-tracker"
@@ -74,18 +89,23 @@ fi
 echo "📥 Updating application files..."
 
 # Update Python files
-sudo cp main.py "$INSTALL_DIR/"
-sudo cp scraper.py "$INSTALL_DIR/"
-sudo cp models.py "$INSTALL_DIR/"
-sudo cp notification_service.py "$INSTALL_DIR/"
-sudo cp storage.py "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/main.py" "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/scraper.py" "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/models.py" "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/notification_service.py" "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/storage.py" "$INSTALL_DIR/"
 
 # Update service file and install it
-sudo cp price-tracker.service "$INSTALL_DIR/"
-sudo cp price-tracker.service /etc/systemd/system/
+sudo cp "$SCRIPT_DIR/price-tracker.service" "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/price-tracker.service" /etc/systemd/system/
 
 # Update requirements if they changed
-sudo cp requirements.txt "$INSTALL_DIR/"
+sudo cp "$SCRIPT_DIR/requirements.txt" "$INSTALL_DIR/"
+
+# Copy debug script if it exists
+if [ -f "$SCRIPT_DIR/debug_blocket.py" ]; then
+    sudo cp "$SCRIPT_DIR/debug_blocket.py" "$INSTALL_DIR/"
+fi
 
 # Update virtual environment if requirements changed
 echo "🔧 Updating Python dependencies..."
@@ -156,3 +176,9 @@ echo "   • Service updated and restarted"
 echo "   • Backup available at: $BACKUP_DIR"
 echo ""
 echo "🎯 Your price tracking continues with the latest features!"
+
+# Clean up temporary directory if we created one
+if [[ "$SCRIPT_DIR" == /tmp/* ]] && [ -d "$SCRIPT_DIR" ]; then
+    echo "🧹 Cleaning up temporary files..."
+    rm -rf "$(dirname "$SCRIPT_DIR")"
+fi
