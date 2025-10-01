@@ -1,0 +1,21 @@
+[Unit]
+Description=Multi-Platform Price Monitor - Prisjakt & Blocket Deal Hunter
+After=network.target
+
+[Service]
+Type=simple
+User=prisjakt-scraper
+Group=prisjakt-scraper
+WorkingDirectory=/opt/prisjakt-scraper
+Environment=PATH=/opt/prisjakt-scraper/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/prisjakt-scraper/venv/bin/python main.py --schedule
+Restart=always
+RestartSec=60
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=prisjakt-monitor
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,48 @@
+[
+  {
+    "name": "AMD Ryzen 7 7800X3D 4,2GHz Socket AM5 Box",
+    "url": "https://www.prisjakt.nu/produkt.php?p=8053700",
+    "target_price": null,
+    "price_selector": "text_search_kr",
+    "platform": "prisjakt"
+  },
+  {
+    "name": "AMD Ryzen 7 7800X3D 4,2GHz Socket AM5 Tray", 
+    "url": "https://www.prisjakt.nu/produkt.php?p=8053713",
+    "target_price": null,
+    "price_selector": "text_search_kr",
+    "platform": "prisjakt"
+  },
+  {
+    "name": "AMD Ryzen 7 9800X3D 4.7GHz Socket AM5 Box",
+    "url": "https://www.prisjakt.nu/produkt.php?p=13951156",
+    "target_price": null,
+    "price_selector": "text_search_kr",
+    "platform": "prisjakt"
+  },
+  {
+    "name": "AMD Ryzen 7 9800X3D 4.7GHz Socket AM5 Tray",
+    "url": "https://www.prisjakt.nu/produkt.php?p=13963569",
+    "target_price": null,
+    "price_selector": "text_search_kr",
+    "platform": "prisjakt"
+  },
+  {
+    "name": "AMD Ryzen 7 7800X3D (Blocket Search)",
+    "url": "https://www.blocket.se/annonser/hela_sverige?q=7800x3d",
+    "target_price": 3500,
+    "price_selector": ".item-price",
+    "platform": "blocket",
+    "min_price": 2000,
+    "max_price": 5000
+  },
+  {
+    "name": "AMD Ryzen 7 9800X3D (Blocket Search)",
+    "url": "https://www.blocket.se/annonser/hela_sverige?q=9800x3d",
+    "target_price": 6000,
+    "price_selector": ".item-price",
+    "platform": "blocket",
+    "min_price": 4000,
+    "max_price": 8000
+  }
+]

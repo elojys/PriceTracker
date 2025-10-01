@@ -1,0 +1,21 @@
+[Unit]
+Description=PriceTracker - Multi-Platform Price Monitoring System
+After=network.target
+
+[Service]
+Type=simple
+User=price-tracker
+Group=price-tracker
+WorkingDirectory=/opt/price-tracker
+Environment=PATH=/opt/price-tracker/venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/price-tracker/venv/bin/python main.py --schedule
+Restart=always
+RestartSec=60
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=price-tracker
+
+[Install]
+WantedBy=multi-user.target
